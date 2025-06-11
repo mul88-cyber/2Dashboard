@@ -1,12 +1,15 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
+import json
 
 # Fungsi z-score manual
 def zscore(s):
+    if s.empty:
+        return pd.Series(dtype=float)
     mean_val = s.mean()
     std_val = s.std()
-    if std_val == 0:
+    if std_val == 0 or pd.isna(std_val):
         return pd.Series(0, index=s.index)
     return (s - mean_val) / std_val
 
@@ -65,16 +68,40 @@ def load_data_from_gcs(bucket_name, file_name):
     """Load data dari Google Cloud Storage"""
     from google.cloud import storage
     import io
+    import traceback
     
     try:
-        # Menggunakan service account dari Streamlit secrets
-        client = storage.Client.from_service_account_info(st.secrets["gcp_service_account"])
+        # Cek apakah secret ada
+        if 'gcp_credentials_json' not in st.secrets:
+            st.error("Secret 'gcp_credentials_json' tidak ditemukan")
+            return pd.DataFrame()
+            
+        # Ambil credentials sebagai string JSON
+        credentials_json = st.secrets["gcp_credentials_json"]
+        
+        # Konversi ke dictionary
+        if isinstance(credentials_json, str):
+            credentials_info = json.loads(credentials_json)
+        else:
+            credentials_info = dict(credentials_json)
+        
+        # Buat client dari credentials
+        client = storage.Client.from_service_account_info(credentials_info)
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(file_name)
+        
+        # Cek apakah file ada
+        if not blob.exists():
+            st.error(f"File {file_name} tidak ditemukan di bucket {bucket_name}")
+            return pd.DataFrame()
+            
+        # Download file
         data = blob.download_as_bytes()
         return pd.read_csv(io.BytesIO(data))
+        
     except Exception as e:
-        st.error(f"Error loading data from GCS: {str(e)}")
+        error_msg = f"GCS Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        st.error(error_msg)
         return pd.DataFrame()
 
 def process_data(df):
