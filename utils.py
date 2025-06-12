@@ -6,9 +6,6 @@ import traceback
 from google.cloud import storage
 import io
 
-# Debug: Pastikan modul terload
-print("✅ Utils module loaded successfully!")
-
 # Fungsi z-score manual
 def zscore(s):
     try:
@@ -40,7 +37,7 @@ def calculate_strength_score(df):
         conditions = [
             df['Final Signal'] == 'Strong Akumulasi',
             df['Final Signal'] == 'Akumulasi',
-            df['Final Signal'].str.contains('Distribusi')
+            df['Final Signal'].str.contains('Distribusi', na=False)
         ]
         choices = [1.5, 0.5, -1.0]
         signal_score = np.select(conditions, choices, default=0)
