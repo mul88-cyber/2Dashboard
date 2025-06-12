@@ -348,23 +348,29 @@ if not df_filtered.empty:
         mode='lines+markers',
         line=dict(color='#ff7f0e', width=3)
     ))
+    
+    # PERBAIKAN UTAMA: Struktur layout yang benar tanpa duplikasi yaxis
     fig_sector.update_layout(
         title='Kekuatan dan Volume per Sektor',
-        yaxis=dict(title='Strength Score'),
-        yaxis2=dict(
-            title='Volume (%)',
-            overlaying='y',
-            side='right',
-            range=[0, 100]
-        ),
         height=500,
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(color='white'),
         legend=dict(font=dict(color='white')),
         xaxis=dict(tickfont=dict(color='white')),
-        yaxis=dict(tickfont=dict(color='white'), titlefont=dict(color='white')),
-        yaxis2=dict(tickfont=dict(color='white'), titlefont=dict(color='white'))
+        yaxis=dict(
+            title='Strength Score',
+            tickfont=dict(color='white'),
+            titlefont=dict(color='white')
+        ),
+        yaxis2=dict(
+            title='Volume (%)',
+            overlaying='y',
+            side='right',
+            range=[0, 100],
+            tickfont=dict(color='white'),
+            titlefont=dict(color='white')
+        )
     )
     st.plotly_chart(fig_sector, use_container_width=True)
 else:
@@ -435,8 +441,10 @@ if not df_filtered.empty and 'df_top25' in locals() and not df_top25.empty:
                 font=dict(color='white'),
                 legend=dict(font=dict(color='white')),
                 xaxis=dict(tickfont=dict(color='white')),
-                yaxis=dict(tickfont=dict(color='white'), titlefont=dict(color='white')),
-                yaxis2=dict(tickfont=dict(color='white'), titlefont=dict(color='white'))
+                yaxis_title_font=dict(color='white'),
+                yaxis_tickfont=dict(color='white'),
+                yaxis2_title_font=dict(color='white'),
+                yaxis2_tickfont=dict(color='white')
             )
             st.plotly_chart(fig_hist, use_container_width=True)
         else:
