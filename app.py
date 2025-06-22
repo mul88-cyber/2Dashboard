@@ -404,11 +404,11 @@ if not df_filtered.empty and 'df_top25' in locals() and not df_top25.empty:
             st.metric("Volume", f"{stock_data['Volume']/1e6:.2f} juta")
             st.metric("Aliran Asing", stock_data['Foreign Flow'])
         
-        # Grafik historis 20 hari
-        st.subheader("Perkembangan 20 Hari Terakhir")
+        # Grafik historis 60 hari
+        st.subheader("Perkembangan 60 Hari Terakhir")
         hist_data = df[
             (df['Stock Code'] == selected_stock) & 
-            (df['Last Trading Date'] >= selected_date - timedelta(days=20))
+            (df['Last Trading Date'] >= selected_date - timedelta(days=60))
         ].sort_values('Last Trading Date')
         
         if not hist_data.empty:
