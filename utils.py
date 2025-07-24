@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import io
 from google.cloud import storage
-from google.oauth2 import service_account # <-- Tambahkan import ini
+from google.oauth2 import service_account
 
 def process_data(df):
     """Fungsi untuk memproses data mentah. (Tidak ada perubahan di sini)"""
@@ -44,19 +44,18 @@ def load_data_from_local(file_name="hasil_gabungan.csv"):
 def load_data_from_gcs(bucket_name, file_name):
     """
     Memuat data dari Google Cloud Storage menggunakan Streamlit Secrets.
-    --- PERBAIKAN UTAMA DI SINI ---
     """
     try:
-        # Cek apakah secrets GCS ada
         if "gcs" not in st.secrets:
             st.error("Konfigurasi GCS secrets tidak ditemukan!")
             raise Exception("GCS secrets missing")
 
-        # Buat kredensial dari secrets
-        creds = service_account.Credentials.from_service_account_info(st.secrets["gcs"])
+        creds_dict = st.secrets["gcs"]
+        creds = service_account.Credentials.from_service_account_info(creds_dict)
         
-        # Buat client dengan kredensial
-        storage_client = storage.Client(credentials=creds)
+        # --- PERBAIKAN FINAL DI SINI ---
+        # Menambahkan 'project' secara eksplisit saat membuat client
+        storage_client = storage.Client(project=creds_dict['project_id'], credentials=creds)
         
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(file_name)
@@ -65,6 +64,5 @@ def load_data_from_gcs(bucket_name, file_name):
         print("Berhasil terhubung dan memuat data dari GCS.")
         return df
     except Exception as e:
-        # Jika GCS gagal, gunakan data lokal sebagai fallback
         print(f"Gagal terhubung ke GCS: {e}. Menggunakan data lokal sebagai fallback.")
         return load_data_from_local()
