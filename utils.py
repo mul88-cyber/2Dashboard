@@ -1,37 +1,33 @@
+# utils.py
+
+import streamlit as st
 import pandas as pd
 import numpy as np
 import io
 from google.cloud import storage
+from google.oauth2 import service_account # <-- Tambahkan import ini
 
 def process_data(df):
-    """
-    Fungsi untuk memproses data mentah.
-    Menambahkan kolom-kolom analisis yang dibutuhkan oleh dashboard.
-    """
+    """Fungsi untuk memproses data mentah. (Tidak ada perubahan di sini)"""
     df['Last Trading Date'] = pd.to_datetime(df['Last Trading Date'])
     df['week'] = df['Last Trading Date'].dt.strftime('%Y-%U')
-
-    if 'Strength_Score' not in df.columns:
-        df['Strength_Score'] = np.random.uniform(50, 100, size=len(df))
-    if 'Foreign Flow' not in df.columns:
-        df['Foreign Flow'] = np.where(df['Foreign Buy'] > df['Foreign Sell'], 'Inflow', 'Outflow')
+    if 'Strength_Score' not in df.columns: df['Strength_Score'] = np.random.uniform(50, 100, size=len(df))
+    if 'Foreign Flow' not in df.columns: df['Foreign Flow'] = np.where(df['Foreign Buy'] > df['Foreign Sell'], 'Inflow', 'Outflow')
     if 'Big_Player_Pattern' not in df.columns:
         patterns = ["Big Player Accumulation", "Bandar Accumulation", "Normal", "Big Player Distribution", "Bandar Distribution"]
         df['Big_Player_Pattern'] = np.random.choice(patterns, size=len(df), p=[0.2, 0.2, 0.2, 0.2, 0.2])
-    if 'Volume_Spike_Ratio' not in df.columns:
-        df['Volume_Spike_Ratio'] = np.random.uniform(0.5, 5.0, size=len(df))
-    if 'Bid/Offer Imbalance' not in df.columns:
-        df['Bid/Offer Imbalance'] = np.random.uniform(0.5, 2.0, size=len(df))
-    if 'Close' not in df.columns:
-        df['Close'] = np.random.randint(100, 10000, size=len(df))
-    if 'frequency' not in df.columns:
-        df['frequency'] = np.random.randint(500, 20000, size=len(df))
+    if 'Volume_Spike_Ratio' not in df.columns: df['Volume_Spike_Ratio'] = np.random.uniform(0.5, 5.0, size=len(df))
+    if 'Bid/Offer Imbalance' not in df.columns: df['Bid/Offer Imbalance'] = np.random.uniform(0.5, 2.0, size=len(df))
+    if 'Close' not in df.columns: df['Close'] = np.random.randint(100, 10000, size=len(df))
+    if 'frequency' not in df.columns: df['frequency'] = np.random.randint(500, 20000, size=len(df))
     if 'Final Signal' not in df.columns:
         signals = ["Strong Akumulasi", "Akumulasi", "Netral", "Distribusi", "Strong Distribusi"]
         df['Final Signal'] = np.random.choice(signals, size=len(df))
     return df
 
 def load_data_from_local(file_name="hasil_gabungan.csv"):
+    """Fungsi cadangan jika GCS gagal."""
+    print("Membuat data dummy...")
     try:
         df = pd.read_csv(file_name)
     except FileNotFoundError:
@@ -46,13 +42,29 @@ def load_data_from_local(file_name="hasil_gabungan.csv"):
     return df
 
 def load_data_from_gcs(bucket_name, file_name):
+    """
+    Memuat data dari Google Cloud Storage menggunakan Streamlit Secrets.
+    --- PERBAIKAN UTAMA DI SINI ---
+    """
     try:
-        storage_client = storage.Client()
+        # Cek apakah secrets GCS ada
+        if "gcs" not in st.secrets:
+            st.error("Konfigurasi GCS secrets tidak ditemukan!")
+            raise Exception("GCS secrets missing")
+
+        # Buat kredensial dari secrets
+        creds = service_account.Credentials.from_service_account_info(st.secrets["gcs"])
+        
+        # Buat client dengan kredensial
+        storage_client = storage.Client(credentials=creds)
+        
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(file_name)
         data = blob.download_as_bytes()
         df = pd.read_csv(io.BytesIO(data))
+        print("Berhasil terhubung dan memuat data dari GCS.")
         return df
     except Exception as e:
+        # Jika GCS gagal, gunakan data lokal sebagai fallback
         print(f"Gagal terhubung ke GCS: {e}. Menggunakan data lokal sebagai fallback.")
         return load_data_from_local()
