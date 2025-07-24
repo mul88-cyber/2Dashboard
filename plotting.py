@@ -21,7 +21,6 @@ DARK_TEMPLATE = {
 }
 
 def create_heatmap_sektor(df):
-    """Membuat grafik heatmap kekuatan sinyal per sektor."""
     if df.empty: return go.Figure()
     heatmap_data = df.pivot_table(index='Sector', columns='Final Signal', values='Strength_Score', aggfunc='mean', fill_value=0)
     if heatmap_data.empty: return go.Figure()
@@ -30,7 +29,6 @@ def create_heatmap_sektor(df):
     return fig
 
 def create_big_player_scatter(df):
-    """Membuat scatter plot untuk melacak pergerakan big player."""
     df_signals = df[df['Big_Player_Pattern'] != "Normal"].copy()
     if df_signals.empty: return go.Figure()
     fig = px.scatter(df_signals, x='Bid/Offer Imbalance', y='Volume_Spike_Ratio', color='Big_Player_Pattern', size='Strength_Score', hover_name='Stock Code', log_y=True,
@@ -39,7 +37,6 @@ def create_big_player_scatter(df):
     return fig
 
 def create_historical_chart(df_full, stock_code, current_date):
-    """Membuat grafik historis harga dan volume untuk saham terpilih."""
     hist_data = df_full[(df_full['Stock Code'] == stock_code) & (df_full['Last Trading Date'] >= pd.to_datetime(current_date) - timedelta(days=90))].sort_values('Last Trading Date')
     if hist_data.empty: return go.Figure()
     fig = go.Figure()
@@ -49,7 +46,6 @@ def create_historical_chart(df_full, stock_code, current_date):
     return fig
 
 def create_volume_frequency_scatter(df):
-    """Membuat scatter plot untuk menganalisis Volume vs Frekuensi."""
     if df.empty or 'frequency' not in df.columns: return go.Figure()
     fig = px.scatter(df, x='Volume', y='frequency', color='Final Signal', size='Strength_Score', hover_name='Stock Code', log_x=True, log_y=True,
                      color_discrete_sequence=px.colors.qualitative.Set1, labels={'Volume': 'Volume (Log)', 'frequency': 'Frekuensi (Log)'})
@@ -57,7 +53,6 @@ def create_volume_frequency_scatter(df):
     return fig
 
 def create_wbw_sektor_chart(df, metric_choice='Rata-rata Harga'):
-    """Membuat line chart pergerakan mingguan untuk sektor."""
     if df.empty or 'week' not in df.columns: return go.Figure()
     wvw_sektor = df.groupby(['week', 'Sector']).agg(total_volume=('Volume', 'sum'), total_frequency=('frequency', 'sum'), avg_close=('Close', 'mean')).reset_index().sort_values('week')
     metric_map = {'Rata-rata Harga': ('avg_close', 'Rata-rata Harga Penutupan'), 'Total Volume': ('total_volume', 'Total Volume'), 'Total Frekuensi': ('total_frequency', 'Total Frekuensi')}
@@ -67,7 +62,6 @@ def create_wbw_sektor_chart(df, metric_choice='Rata-rata Harga'):
     return fig
 
 def create_wbw_saham_chart(df, stock_code):
-    """Membuat combo chart pergerakan mingguan untuk satu saham."""
     df_saham = df[df['Stock Code'] == stock_code].copy()
     if df_saham.empty or 'week' not in df.columns: return go.Figure()
     wvw_saham = df_saham.groupby('week').agg(total_volume=('Volume', 'sum'), total_frequency=('frequency', 'sum'), avg_close=('Close', 'mean')).reset_index().sort_values('week')
@@ -82,18 +76,31 @@ def create_wbw_saham_chart(df, stock_code):
                       yaxis3=dict(title=dict(text='Frekuensi', font=dict(color='#ff7f0e')), overlaying='y', side='right', position=0.92, showgrid=False, tickfont=dict(color='#ff7f0e'), anchor='free'))
     return fig
 
+# --- FUNGSI DIPERBARUI & DIPERBAIKI ---
 def create_wbw_foreign_flow_chart(df, stock_code):
     """Membuat bar chart pergerakan foreign flow mingguan untuk satu saham."""
     df_saham = df[df['Stock Code'] == stock_code].copy()
     if df_saham.empty or 'Foreign Buy' not in df.columns or 'Foreign Sell' not in df.columns: return go.Figure()
-    wvw_foreign = df_saham.groupby('week').agg(total_buy=('Foreign Buy', 'sum'), total_sell=('Foreign Sell', 'sum')).reset_index().sort_values('week')
-    wvw_foreign['net_flow'] = wvw_foreign['total_buy'] - wvw_foreign['total_sell']
+
+    wvw_foreign = df_saham.groupby('week').agg(
+        total_buy=('Foreign Buy', 'sum'),
+        total_sell=('Foreign Sell', 'sum')
+    ).reset_index().sort_values('week')
+    
     fig = go.Figure()
     fig.add_trace(go.Bar(x=wvw_foreign['week'], y=wvw_foreign['total_buy'], name='Foreign Buy', marker_color='springgreen'))
     fig.add_trace(go.Bar(x=wvw_foreign['week'], y=wvw_foreign['total_sell'], name='Foreign Sell', marker_color='tomato'))
-    fig.add_trace(go.Scatter(x=wvw_foreign['week'], y=wvw_foreign['net_flow'], name='Net Flow', line=dict(color='deepskyblue', width=3), yaxis='y2'))
-    fig.update_layout(title=f'Analisis Foreign Flow Mingguan untuk {stock_code}', barmode='group', height=400, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color="white"),
-                      xaxis=dict(title='Minggu'),
-                      yaxis=dict(title='Total Buy/Sell (Rp)', gridcolor="#444"),
-                      yaxis2=dict(title='Net Flow (Rp)', overlaying='y', side='right', showgrid=False, titlefont=dict(color='deepskyblue'), tickfont=dict(color='deepskyblue')))
+
+    # Menghapus Net Flow dan yaxis2, memperbaiki error ValueError
+    fig.update_layout(
+        title=f'Analisis Foreign Flow Mingguan untuk {stock_code}',
+        barmode='group',
+        height=400,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+        xaxis=dict(title='Minggu', gridcolor="#444"),
+        yaxis=dict(title='Total Buy/Sell (Rp)', gridcolor="#444")
+    )
     return fig
