@@ -4,9 +4,10 @@ from plotly.subplots import make_subplots
 from datetime import timedelta
 import pandas as pd
 
+# Template ini HANYA akan digunakan untuk chart yang BUKAN subplot
 DARK_TEMPLATE = {"layout": {"plot_bgcolor": "rgba(0,0,0,0)", "paper_bgcolor": "rgba(0,0,0,0)", "font": {"color": "white"}, "xaxis": {"gridcolor": "#444", "tickfont": {"color": "white"}}, "yaxis": {"gridcolor": "#444", "tickfont": {"color": "white"}}, "legend": {"font": {"color": "white"}}, "coloraxis": {"colorbar": {"title_font": {"color": "white"}, "tickfont": {"color": "white"}}}}}
 
-# --- FUNGSI LAMA YANG TIDAK BERUBAH ---
+# --- FUNGSI LAMA YANG SUDAH BENAR ---
 def create_heatmap_sektor(df):
     if df.empty: return go.Figure()
     heatmap_data = df.pivot_table(index='Sector', columns='Final Signal', values='Strength_Score', aggfunc='mean', fill_value=0)
@@ -39,7 +40,7 @@ def create_wbw_sektor_chart(df, metric_choice='Rata-rata Harga'):
     fig.update_layout(title=f'Pergerakan Mingguan (WbW) per Sektor - {y_title}', height=500, **DARK_TEMPLATE["layout"])
     return fig
 
-# --- FUNGSI DIPERBARUI & DIGABUNG ---
+# --- FUNGSI YANG DIPERBAIKI ---
 
 def create_historical_chart(df_full, stock_code, current_date):
     """Membuat grafik historis HARIAN (Harga, Volume, dan Foreign Flow) dalam 2 subplot."""
@@ -56,30 +57,24 @@ def create_historical_chart(df_full, stock_code, current_date):
     fig.add_trace(go.Bar(x=hist_data['Last Trading Date'], y=hist_data['Foreign Buy'], name='Foreign Buy', marker_color='springgreen'), row=2, col=1)
     fig.add_trace(go.Bar(x=hist_data['Last Trading Date'], y=hist_data['Foreign Sell'], name='Foreign Sell', marker_color='tomato'), row=2, col=1)
 
+    # Mengatur layout secara manual untuk subplot
     fig.update_layout(
         title=f'Analisis Harian Lengkap untuk {stock_code} (90 Hari)',
-        height=600,
-        barmode='group',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        **DARK_TEMPLATE["layout"]
+        height=600, barmode='group',
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color="white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
-    fig.update_yaxes(title_text="Harga (Rp) / Volume", row=1, col=1)
-    fig.update_yaxes(title_text="Foreign Flow (Rp)", row=2, col=1)
-    fig.update_xaxes(showticklabels=False, row=1, col=1) # Sembunyikan label x di chart atas
+    fig.update_yaxes(title_text="Harga (Rp) / Volume", gridcolor="#444", row=1, col=1)
+    fig.update_yaxes(title_text="Foreign Flow (Rp)", gridcolor="#444", row=2, col=1)
+    fig.update_xaxes(showticklabels=True, gridcolor="#444", row=2, col=1)
+    fig.update_xaxes(showticklabels=False, row=1, col=1)
     return fig
 
 def create_wbw_combined_chart(df, stock_code):
     """Membuat grafik gabungan MINGGUAN (Harga, Volume, dan Foreign Flow) dalam 2 subplot."""
     df_saham = df[df['Stock Code'] == stock_code].copy()
     if df_saham.empty or 'week' not in df.columns: return go.Figure()
-
-    # Agregasi semua data yang diperlukan
-    wvw_data = df_saham.groupby('week').agg(
-        total_volume=('Volume', 'sum'),
-        avg_close=('Close', 'mean'),
-        total_buy=('Foreign Buy', 'sum'),
-        total_sell=('Foreign Sell', 'sum')
-    ).reset_index().sort_values('week')
+    wvw_data = df_saham.groupby('week').agg(total_volume=('Volume', 'sum'), avg_close=('Close', 'mean'), total_buy=('Foreign Buy', 'sum'), total_sell=('Foreign Sell', 'sum')).reset_index().sort_values('week')
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.7, 0.3])
 
@@ -91,14 +86,15 @@ def create_wbw_combined_chart(df, stock_code):
     fig.add_trace(go.Bar(x=wvw_data['week'], y=wvw_data['total_buy'], name='Foreign Buy', marker_color='springgreen'), row=2, col=1)
     fig.add_trace(go.Bar(x=wvw_data['week'], y=wvw_data['total_sell'], name='Foreign Sell', marker_color='tomato'), row=2, col=1)
     
+    # Mengatur layout secara manual untuk subplot
     fig.update_layout(
         title=f'Analisis Mingguan Lengkap untuk {stock_code}',
-        height=600,
-        barmode='group',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        **DARK_TEMPLATE["layout"]
+        height=600, barmode='group',
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color="white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
-    fig.update_yaxes(title_text="Harga (Rp) / Volume", row=1, col=1)
-    fig.update_yaxes(title_text="Foreign Flow (Rp)", row=2, col=1)
+    fig.update_yaxes(title_text="Harga (Rp) / Volume", gridcolor="#444", row=1, col=1)
+    fig.update_yaxes(title_text="Foreign Flow (Rp)", gridcolor="#444", row=2, col=1)
+    fig.update_xaxes(showticklabels=True, title_text="Minggu", gridcolor="#444", row=2, col=1)
     fig.update_xaxes(showticklabels=False, row=1, col=1)
     return fig
