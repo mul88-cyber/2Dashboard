@@ -1,35 +1,43 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 
-# Import fungsi dari file lain
 from utils import load_data_from_gcs, process_data
 from ui_components import display_stock_card, display_main_metrics
 from plotting import (
     create_heatmap_sektor, create_big_player_scatter, create_historical_chart,
-    create_volume_frequency_scatter, create_wbw_sektor_chart, create_wbw_saham_chart # --- Diperbarui ---
+    create_volume_frequency_scatter, create_wbw_sektor_chart, create_wbw_saham_chart
 )
 
-# --- KONFIGURASI HALAMAN & CSS ---
-# ... (bagian ini tetap sama) ...
+# Konfigurasi halaman
+st.set_page_config(
+    page_title="Big Player Stock Analysis",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded"  # <-- Ini memastikan sidebar muncul
+)
 
-# --- FUNGSI LOAD DATA DENGAN CACHE ---
+# CSS Kustom
+st.markdown("""
+<style>
+    .stApp { background-color: #0e1117; color: #f0f0f0; }
+    .stock-card { background-color: #1e2130; border: 1px solid #2a2f4f; border-radius: 10px; padding: 15px; margin: 10px 5px; transition: transform 0.2s; height: 230px; display: flex; flex-direction: column; justify-content: space-between; }
+    .stock-card:hover { transform: translateY(-5px); }
+    .stMetric { background-color: #1e2130; border-radius: 10px; padding: 10px; border: 1px solid #2a2f4f; }
+</style>
+""", unsafe_allow_html=True)
+
+# Fungsi load data dengan cache
 @st.cache_data(ttl=3600, show_spinner="Memuat data saham terbaru...")
 def load_and_process_data(bucket_name, file_name):
-    """Memuat dan memproses data, dengan caching."""
     try:
         df = load_data_from_gcs(bucket_name, file_name)
-        if df.empty: return pd.DataFrame()
-        return process_data(df)
+        return process_data(df) if not df.empty else pd.DataFrame()
     except Exception as e:
         st.error(f"Error saat memuat data: {e}")
         return pd.DataFrame()
 
-# --- MAIN APP ---
-
-# Judul Utama
+# === APLIKASI UTAMA ===
 st.title("📈 Big Player & Bandarmologi Analysis")
 st.markdown("Dasbor interaktif untuk melacak pergerakan Big Player, sinyal Bandarmologi, dan analisis mingguan.")
 
@@ -42,72 +50,79 @@ if df_full.empty:
     st.error("Data tidak tersedia. Silakan cek konfigurasi atau sumber data.")
     st.stop()
 
-# --- SIDEBAR FILTERS ---
-# ... (sidebar tetap sama, tapi kita akan pakai df_full untuk analisis WbW) ...
+# --- Sidebar Filters ---
+st.sidebar.header("Filter Global")
+date_options = sorted(df_full['Last Trading Date'].unique(), reverse=True)
+selected_date = st.sidebar.selectbox("Pilih Tanggal Analisis", options=date_options, format_func=lambda x: pd.to_datetime(x).strftime('%d %b %Y'))
+all_sectors = sorted(df_full['Sector'].unique())
+selected_sectors = st.sidebar.multiselect("Filter Sektor", options=all_sectors, default=all_sectors)
 
-# Filter data harian berdasarkan input sidebar
-selected_date = pd.to_datetime(st.session_state.get('selected_date', df_full['Last Trading Date'].max()))
-df_filtered = df_full[
-    (df_full['Last Trading Date'] == selected_date) &
-    (df_full['Sector'].isin(st.session_state.get('selected_sectors', df_full['Sector'].unique())))
-].copy()
+# Filter data harian
+df_filtered = df_full[(df_full['Last Trading Date'] == selected_date) & (df_full['Sector'].isin(selected_sectors))].copy()
+st.sidebar.info(f"Data harian ditemukan: {len(df_filtered)} baris")
+if df_filtered.empty:
+    st.sidebar.error("Tidak ada data untuk filter ini. Coba ganti tanggal/sektor.")
 
-# --- TABS LAYOUT (Diperbarui) ---
-tab_titles = [
-    "📊 Ringkasan Pasar", 
-    "🔥 Top 25 Pilihan", 
-    "🔍 Analisis & Perbandingan",
-    "⚡ Vol & Freq Analysis", # --- BARU ---
-    "📅 Analisis Mingguan (WbW)" # --- BARU ---
-]
+# --- Layout dengan Tabs ---
+tab_titles = ["📊 Ringkasan Pasar", "🔥 Top 25 Pilihan", "🔍 Analisis & Perbandingan", "⚡ Vol & Freq Analysis", "📅 Analisis Mingguan (WbW)"]
 tab1, tab2, tab3, tab4, tab5 = st.tabs(tab_titles)
 
-# ... (Tab 1, 2, 3 tetap sama) ...
-
-# --- BARU: TAB 4: VOLUME & FREKUENSI ANALYSIS ---
-with tab4:
-    st.header("Analisis Volume dan Frekuensi")
-    st.info("Gunakan grafik ini untuk melihat karakteristik saham berdasarkan aktivitas transaksinya pada tanggal terpilih.")
-    with st.expander("Bagaimana cara membacanya?"):
-        st.write("""
-        - **Kanan Atas (Volume Tinggi, Frekuensi Tinggi)**: Saham sangat likuid dan aktif, sering diminati oleh ritel dan institusi.
-        - **Kanan Bawah (Volume Tinggi, Frekuensi Rendah)**: Aksi borongan/jualan besar dalam sedikit transaksi. Potensi pergerakan oleh *big player*.
-        - **Kiri Atas (Volume Rendah, Frekuensi Tinggi)**: Banyak transaksi kecil-kecil (*scalping*), biasanya saham kurang likuid.
-        - **Kiri Bawah (Volume Rendah, Frekuensi Rendah)**: Saham tidak likuid / sepi peminat.
-        """)
-
-    if df_filtered.empty:
-        st.warning("Tidak ada data untuk tanggal dan sektor yang dipilih.")
+with tab1: # Ringkasan Pasar
+    if not df_filtered.empty:
+        display_main_metrics(df_filtered)
+        st.markdown("---")
+        st.subheader("Visualisasi Pasar")
+        st.plotly_chart(create_heatmap_sektor(df_filtered), use_container_width=True)
+        st.plotly_chart(create_big_player_scatter(df_filtered), use_container_width=True)
     else:
-        fig_vf_scatter = create_volume_frequency_scatter(df_filtered)
-        st.plotly_chart(fig_vf_scatter, use_container_width=True)
+        st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
 
-# --- BARU: TAB 5: ANALISIS MINGGUAN (WbW) ---
-with tab5:
+with tab2: # Top 25 Pilihan
+    if not df_filtered.empty:
+        df_top25 = df_filtered.sort_values('Strength_Score', ascending=False).head(25)
+        st.subheader(f"Top 25 Saham Pilihan pada {pd.to_datetime(selected_date).strftime('%d %B %Y')}")
+        for i in range(0, len(df_top25), 5):
+            cols = st.columns(5)
+            for j, stock_data in df_top25.iloc[i:i+5].iterrows():
+                display_stock_card(stock_data, cols[j])
+    else:
+        st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
+
+with tab3: # Analisis & Perbandingan
+    if not df_filtered.empty:
+        st.subheader("Analisis Saham Individual (Harian)")
+        all_stocks_list = sorted(df_filtered['Stock Code'].unique())
+        search_stock = st.selectbox("Cari saham untuk dianalisis:", options=all_stocks_list, key="search_daily")
+        if search_stock:
+            st.plotly_chart(create_historical_chart(df_full, search_stock, selected_date), use_container_width=True)
+        st.markdown("---")
+        st.subheader("Bandingkan Saham (Harian)")
+        stocks_to_compare = st.multiselect("Pilih 2 hingga 4 saham untuk dibandingkan:", options=all_stocks_list, max_selections=4)
+        if stocks_to_compare:
+            cols = st.columns(len(stocks_to_compare))
+            for i, stock_code in enumerate(stocks_to_compare):
+                data = df_filtered[df_filtered['Stock Code'] == stock_code].iloc[0]
+                with cols[i]:
+                    st.markdown(f"<h5>{data['Stock Code']}</h5>", unsafe_allow_html=True)
+                    st.metric("Strength Score", f"{data['Strength_Score']:.1f}")
+                    st.metric("Final Signal", data['Final Signal'])
+    else:
+        st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
+
+with tab4: # Vol & Freq Analysis
+    if not df_filtered.empty:
+        st.header("Analisis Volume dan Frekuensi (Harian)")
+        st.plotly_chart(create_volume_frequency_scatter(df_filtered), use_container_width=True)
+    else:
+        st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
+
+with tab5: # Analisis Mingguan (WbW)
     st.header("Analisis Pergerakan Mingguan (Week-by-Week)")
-    
     st.subheader("Performa Sektor per Minggu")
-    metric_choice = st.radio(
-        "Pilih metrik untuk ditampilkan:",
-        options=['Rata-rata Harga', 'Total Volume', 'Total Frekuensi'],
-        horizontal=True,
-        key='wvw_metric'
-    )
-    fig_wvw_sektor = create_wbw_sektor_chart(df_full, metric_choice)
-    st.plotly_chart(fig_wvw_sektor, use_container_width=True)
-    
+    metric_choice = st.radio("Pilih metrik:", options=['Rata-rata Harga', 'Total Volume', 'Total Frekuensi'], horizontal=True)
+    st.plotly_chart(create_wbw_sektor_chart(df_full, metric_choice), use_container_width=True)
     st.markdown("---")
-    
     st.subheader("Detail Saham per Minggu")
-    all_stocks_list = sorted(df_full['Stock Code'].unique())
-    stock_choice_wvw = st.selectbox(
-        "Pilih saham untuk melihat tren mingguan:",
-        options=all_stocks_list,
-        key='wvw_stock_choice'
-    )
+    stock_choice_wvw = st.selectbox("Pilih saham:", options=sorted(df_full['Stock Code'].unique()))
     if stock_choice_wvw:
-        fig_wvw_saham = create_wbw_saham_chart(df_full, stock_choice_wvw)
-        st.plotly_chart(fig_wvw_saham, use_container_width=True)
-
-# --- FOOTER ---
-# ... (footer tetap sama) ...
+        st.plotly_chart(create_wbw_saham_chart(df_full, stock_choice_wvw), use_container_width=True)
