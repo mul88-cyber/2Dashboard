@@ -1,16 +1,19 @@
+# plotting.py
+
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import timedelta
+import pandas as pd
 
+# --- PERBAIKAN: Kunci 'title' dihapus dari template untuk menghindari konflik ---
 DARK_TEMPLATE = {
     "layout": {
         "plot_bgcolor": "rgba(0,0,0,0)",
         "paper_bgcolor": "rgba(0,0,0,0)",
-        "font": {"color": "white"},
+        "font": {"color": "white"}, # Font putih ini akan berlaku untuk semua teks, termasuk judul
         "xaxis": {"gridcolor": "#444", "tickfont": {"color": "white"}},
         "yaxis": {"gridcolor": "#444", "tickfont": {"color": "white"}},
         "legend": {"font": {"color": "white"}},
-        "title": {"font": {"color": "white"}},
         "coloraxis": {
             "colorbar": {
                 "title_font": {"color": "white"},
@@ -106,7 +109,11 @@ def create_volume_frequency_scatter(df):
         color_discrete_sequence=px.colors.qualitative.Set1,
         labels={'Volume': 'Volume (Log)', 'frequency': 'Frekuensi (Log)'}
     )
-    fig.update_layout(title='Analisis Volume vs Frekuensi Transaksi', height=600, **DARK_TEMPLATE["layout"])
+    fig.update_layout(
+        title='Analisis Volume vs Frekuensi Transaksi', 
+        height=600, 
+        **DARK_TEMPLATE["layout"]
+    )
     return fig
 
 def create_wbw_sektor_chart(df, metric_choice='Rata-rata Harga'):
@@ -128,7 +135,11 @@ def create_wbw_sektor_chart(df, metric_choice='Rata-rata Harga'):
     y_val, y_title = metric_map[metric_choice]
 
     fig = px.line(wvw_sektor, x='week', y=y_val, color='Sector', markers=True, labels={'week': 'Minggu', y_val: y_title})
-    fig.update_layout(title=f'Pergerakan Mingguan (WbW) per Sektor - {y_title}', height=500, **DARK_TEMPLATE["layout"])
+    fig.update_layout(
+        title=f'Pergerakan Mingguan (WbW) per Sektor - {y_title}', 
+        height=500, 
+        **DARK_TEMPLATE["layout"]
+    )
     return fig
 
 def create_wbw_saham_chart(df, stock_code):
@@ -155,6 +166,7 @@ def create_wbw_saham_chart(df, stock_code):
         yaxis2=dict(title='Volume', overlaying='y', side='right', showgrid=False, color='#636efa'),
         yaxis3=dict(title='Frekuensi', overlaying='y', side='right', position=0.9, showgrid=False, color='#ff7f0e', anchor='free'),
         height=500, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        barmode='group',
         **DARK_TEMPLATE["layout"]
     )
     return fig
