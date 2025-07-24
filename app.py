@@ -14,7 +14,7 @@ st.set_page_config(
     page_title="Big Player Stock Analysis",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded"  # <-- Ini memastikan sidebar muncul
+    initial_sidebar_state="expanded"
 )
 
 # CSS Kustom
@@ -81,10 +81,14 @@ with tab2: # Top 25 Pilihan
     if not df_filtered.empty:
         df_top25 = df_filtered.sort_values('Strength_Score', ascending=False).head(25)
         st.subheader(f"Top 25 Saham Pilihan pada {pd.to_datetime(selected_date).strftime('%d %B %Y')}")
+        
+        # --- PERBAIKAN UTAMA DI SINI ---
         for i in range(0, len(df_top25), 5):
             cols = st.columns(5)
-            for j, stock_data in df_top25.iloc[i:i+5].iterrows():
-                display_stock_card(stock_data, cols[j])
+            # Menggunakan zip untuk menggabungkan kolom dan data dengan aman
+            for col, (idx, row) in zip(cols, df_top25.iloc[i:i+5].iterrows()):
+                display_stock_card(row, col)
+        # --- AKHIR PERBAIKAN ---
     else:
         st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
 
@@ -101,17 +105,20 @@ with tab3: # Analisis & Perbandingan
         if stocks_to_compare:
             cols = st.columns(len(stocks_to_compare))
             for i, stock_code in enumerate(stocks_to_compare):
-                data = df_filtered[df_filtered['Stock Code'] == stock_code].iloc[0]
-                with cols[i]:
-                    st.markdown(f"<h5>{data['Stock Code']}</h5>", unsafe_allow_html=True)
-                    st.metric("Strength Score", f"{data['Strength_Score']:.1f}")
-                    st.metric("Final Signal", data['Final Signal'])
+                # Ambil data dari df_filtered yang sudah ada
+                data_to_display = df_filtered[df_filtered['Stock Code'] == stock_code]
+                if not data_to_display.empty:
+                    data = data_to_display.iloc[0]
+                    with cols[i]:
+                        st.markdown(f"<h5>{data['Stock Code']}</h5>", unsafe_allow_html=True)
+                        st.metric("Strength Score", f"{data['Strength_Score']:.1f}")
+                        st.metric("Final Signal", data['Final Signal'])
     else:
         st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
 
 with tab4: # Vol & Freq Analysis
+    st.header("Analisis Volume dan Frekuensi (Harian)")
     if not df_filtered.empty:
-        st.header("Analisis Volume dan Frekuensi (Harian)")
         st.plotly_chart(create_volume_frequency_scatter(df_filtered), use_container_width=True)
     else:
         st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
