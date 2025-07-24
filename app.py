@@ -4,10 +4,10 @@ from datetime import datetime
 
 from utils import load_data_from_gcs, process_data
 from ui_components import display_stock_card, display_main_metrics
+# --- Impor diperbarui ---
 from plotting import (
     create_heatmap_sektor, create_big_player_scatter, create_historical_chart,
-    create_volume_frequency_scatter, create_wbw_sektor_chart, create_wbw_saham_chart,
-    create_wbw_foreign_flow_chart
+    create_volume_frequency_scatter, create_wbw_sektor_chart, create_wbw_combined_chart
 )
 
 st.set_page_config(
@@ -58,7 +58,7 @@ if df_filtered.empty:
 tab_titles = ["📊 Ringkasan Pasar", "🔥 Top 25 Pilihan", "🔍 Analisis & Perbandingan", "⚡ Vol & Freq Analysis", "📅 Analisis Mingguan (WbW)"]
 tab1, tab2, tab3, tab4, tab5 = st.tabs(tab_titles)
 
-with tab1:
+with tab1: # (Tidak ada perubahan)
     if not df_filtered.empty:
         display_main_metrics(df_filtered)
         st.markdown("---")
@@ -68,7 +68,7 @@ with tab1:
     else:
         st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
 
-with tab2:
+with tab2: # (Tidak ada perubahan)
     if not df_filtered.empty:
         df_top25 = df_filtered.sort_values('Strength_Score', ascending=False).head(25)
         st.subheader(f"Top 25 Saham Pilihan pada {pd.to_datetime(selected_date).strftime('%d %B %Y')}")
@@ -79,7 +79,7 @@ with tab2:
     else:
         st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
 
-with tab3: # Analisis & Perbandingan
+with tab3: # Analisis & Perbandingan (Tidak ada perubahan, karena chart harian sudah otomatis ter-update)
     if not df_filtered.empty:
         st.subheader("Analisis Saham Individual (Harian)")
         all_stocks_list = sorted(df_filtered['Stock Code'].unique())
@@ -98,28 +98,28 @@ with tab3: # Analisis & Perbandingan
                     with cols[i]:
                         st.markdown(f"<h5>{data['Stock Code']}</h5>", unsafe_allow_html=True)
                         st.metric("Strength Score", f"{data['Strength_Score']:.1f}")
-                        # --- PERUBAHAN DI SINI: Menampilkan Buy & Sell, bukan Net Flow ---
                         st.metric("Foreign Buy", f"Rp {data['Foreign Buy']/1e9:.2f} M")
                         st.metric("Foreign Sell", f"Rp {data['Foreign Sell']/1e9:.2f} M")
-
     else:
         st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
 
-with tab4:
+with tab4: # (Tidak ada perubahan)
     st.header("Analisis Volume dan Frekuensi (Harian)")
     if not df_filtered.empty:
         st.plotly_chart(create_volume_frequency_scatter(df_filtered), use_container_width=True)
     else:
         st.warning("Pilih tanggal atau sektor yang valid di sidebar untuk menampilkan data.")
 
-with tab5:
+with tab5: # Analisis Mingguan (WbW)
     st.header("Analisis Pergerakan Mingguan (Week-by-Week)")
     st.subheader("Performa Sektor per Minggu")
     metric_choice = st.radio("Pilih metrik:", options=['Rata-rata Harga', 'Total Volume', 'Total Frekuensi'], horizontal=True)
     st.plotly_chart(create_wbw_sektor_chart(df_full, metric_choice), use_container_width=True)
+    
     st.markdown("---")
-    st.subheader("Detail Saham per Minggu")
+    
+    # --- Panggilan fungsi chart mingguan diperbarui ---
+    st.subheader("Detail Saham per Minggu (Gabungan)")
     stock_choice_wvw = st.selectbox("Pilih saham:", options=sorted(df_full['Stock Code'].unique()))
     if stock_choice_wvw:
-        st.plotly_chart(create_wbw_saham_chart(df_full, stock_choice_wvw), use_container_width=True)
-        st.plotly_chart(create_wbw_foreign_flow_chart(df_full, stock_choice_wvw), use_container_width=True)
+        st.plotly_chart(create_wbw_combined_chart(df_full, stock_choice_wvw), use_container_width=True)
